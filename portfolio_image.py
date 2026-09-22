@@ -192,14 +192,19 @@ def _file_like_size(file_object: BinaryIO) -> int | None:
     if not hasattr(file_object, "tell") or not hasattr(file_object, "seek"):
         return None
 
+    current_position = None
     try:
         current_position = file_object.tell()
         file_object.seek(0, 2)
-        size = file_object.tell()
-        file_object.seek(current_position)
-        return size
+        return file_object.tell()
     except OSError:
         return None
+    finally:
+        if current_position is not None:
+            try:
+                file_object.seek(current_position)
+            except OSError:
+                pass
 
 
 def _choose_output_format(
@@ -254,7 +259,7 @@ def _build_save_kwargs(output_format: str, quality: int) -> dict[str, object]:
 def _ensure_output_codec_available(output_format: str, features) -> None:
     codec_checks = {
         "JPEG": lambda: features.check_codec("jpg"),
-        "PNG": lambda: features.check_codec("zlib"),
+        "PNG": lambda: features.check("zlib"),
         "WEBP": lambda: features.check("webp"),
     }
     checker = codec_checks.get(output_format)
