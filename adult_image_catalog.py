@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Iterable, Literal, TypedDict
+from typing import Any, Iterable, Literal, Sequence, TypedDict
 
 from PIL import ExifTags, Image
 
@@ -57,6 +57,16 @@ SORT_PRECEDENCE: dict[str, dict[str, int]] = {
     "color_palette": {value: index for index, value in enumerate(["neutral", "warm", "cool", "high_contrast", "not_recorded"])},
     "image_quality": {value: index for index, value in enumerate(["draft", "standard", "high", "not_recorded"])},
     "consent_status": {value: index for index, value in enumerate(["consented", "pending", "restricted", "withdrawn"])},
+}
+SAFE_EXIF_FIELDS = {
+    "Orientation",
+    "ColorSpace",
+    "ExifImageWidth",
+    "ExifImageHeight",
+    "XResolution",
+    "YResolution",
+    "ResolutionUnit",
+    "Compression",
 }
 
 
@@ -124,7 +134,7 @@ def _sanitize_exif(image: Image.Image) -> dict[str, str]:
     raw_exif = image.getexif()
     for key, value in raw_exif.items():
         field_name = ExifTags.TAGS.get(key, str(key))
-        if field_name in {"GPSInfo", "MakerNote"}:
+        if field_name not in SAFE_EXIF_FIELDS:
             continue
         safe_exif[field_name] = str(value)
     return safe_exif
@@ -279,7 +289,7 @@ def filter_catalog(entries: Iterable[CatalogEntry], *, filters: CatalogFilters) 
 def sort_catalog(
     entries: Iterable[CatalogEntry],
     *,
-    keys: tuple[str, ...] = ("age_range", "skin_visibility", "body_exposure_level", "filename"),
+    keys: Sequence[str] = ("age_range", "skin_visibility", "body_exposure_level", "filename"),
 ) -> list[CatalogEntry]:
     """
     Deterministically sort catalog entries by selected metadata keys.

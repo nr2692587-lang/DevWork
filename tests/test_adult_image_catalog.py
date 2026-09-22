@@ -81,7 +81,8 @@ class AdultImageCatalogTests(unittest.TestCase):
             {
                 tags_by_name["GPSInfo"]: "gps-data",
                 tags_by_name["MakerNote"]: "maker-note",
-                tags_by_name["Artist"]: "authorized user",
+                tags_by_name["DateTimeOriginal"]: "2025:08:01 10:10:10",
+                tags_by_name["Orientation"]: 1,
             }
         )
 
@@ -89,7 +90,8 @@ class AdultImageCatalogTests(unittest.TestCase):
 
         self.assertNotIn("GPSInfo", safe_exif)
         self.assertNotIn("MakerNote", safe_exif)
-        self.assertEqual(safe_exif["Artist"], "authorized user")
+        self.assertNotIn("DateTimeOriginal", safe_exif)
+        self.assertEqual(safe_exif["Orientation"], "1")
 
     def test_filter_and_sort_are_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

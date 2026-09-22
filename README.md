@@ -27,7 +27,7 @@ This repository provides a **consent-aware, adult-only** image cataloging module
 - orientation
 - file size
 - SHA-256 hash
-- EXIF fields with `GPSInfo` and `MakerNote` omitted by default
+- a safe EXIF subset (for example orientation and resolution fields), with location/device-unique/sensitive tags omitted by default
 
 ## Example usage (adult-only + consent-aware)
 
