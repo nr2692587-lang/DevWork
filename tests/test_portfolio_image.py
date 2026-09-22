@@ -76,6 +76,9 @@ class ProcessPortfolioImageTests(unittest.TestCase):
 
         self.assertEqual(result.source_format, "WEBP")
         self.assertEqual(result.output_format, "WEBP")
+        self.assertTrue(result.output_bytes)
+        with Image.open(BytesIO(result.output_bytes)) as output_image:
+            self.assertEqual(output_image.format, "WEBP")
 
     def test_uses_derivative_format_tag_for_tiff_conversion(self) -> None:
         image = Image.new("RGBA", (24, 12), color=(100, 50, 25, 128))

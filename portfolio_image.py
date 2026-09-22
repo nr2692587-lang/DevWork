@@ -271,7 +271,7 @@ def _build_save_kwargs(output_format: str, quality: int) -> dict[str, object]:
 
 def _ensure_output_codec_available(output_format: str, features) -> None:
     codec_checks = {
-        "JPEG": lambda: features.check_codec("jpg"),
+        "JPEG": lambda: features.check("jpg"),
         "PNG": lambda: features.check("zlib"),
         "WEBP": lambda: features.check("webp"),
     }
