@@ -76,6 +76,11 @@ def process_portfolio_image(
     features = image_module["features"]
 
     source, source_name, source_size = _open_source(image_input)
+    buffer = BytesIO()
+    prepared = None
+    normalized = None
+    original_dimensions = None
+    chosen_output_format = None
 
     try:
         with Image.open(source) as opened_image:
@@ -97,15 +102,6 @@ def process_portfolio_image(
                 features=features,
             )
             prepared = _prepare_for_output(derivative, chosen_output_format).copy()
-            buffer = BytesIO()
-            _ensure_output_codec_available(chosen_output_format, features)
-            save_kwargs = _build_save_kwargs(chosen_output_format, quality)
-            try:
-                prepared.save(buffer, format=chosen_output_format, **save_kwargs)
-            except OSError as exc:
-                raise OutputImageError(
-                    "Unable to encode derivative image output."
-                ) from exc
     except UnidentifiedImageError as exc:
         raise CorruptImageError("Unable to decode image data.") from exc
     except OSError as exc:
@@ -113,6 +109,21 @@ def process_portfolio_image(
     finally:
         if source is not image_input and hasattr(source, "close"):
             source.close()
+
+    if (
+        prepared is None
+        or normalized is None
+        or original_dimensions is None
+        or chosen_output_format is None
+    ):
+        raise ImageProcessingError("Image processing could not be completed.")
+
+    _ensure_output_codec_available(chosen_output_format, features)
+    save_kwargs = _build_save_kwargs(chosen_output_format, quality)
+    try:
+        prepared.save(buffer, format=chosen_output_format, **save_kwargs)
+    except OSError as exc:
+        raise OutputImageError("Unable to encode derivative image output.") from exc
 
     output_bytes = buffer.getvalue()
     resolved_output_path = _write_output(output_bytes, output_path)
@@ -279,7 +290,7 @@ def _write_output(output_bytes: bytes, output_path: str | Path | None) -> str | 
         resolved = Path(output_path)
         resolved.parent.mkdir(parents=True, exist_ok=True)
         resolved.write_bytes(output_bytes)
-        return str(resolved)
+        return str(resolved.resolve())
     except OSError as exc:
         raise OutputImageError("Unable to write derivative image output.") from exc
 
