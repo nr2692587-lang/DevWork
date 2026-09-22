@@ -43,6 +43,21 @@ SUPPORTED_SORT_KEYS: tuple[str, ...] = (
     "filename",
     "orientation",
 )
+SORT_PRECEDENCE: dict[str, dict[str, int]] = {
+    "age_range": {value: index for index, value in enumerate(["18-24", "25-34", "35-44", "45-54", "55+", "unknown"])},
+    "skin_visibility": {value: index for index, value in enumerate(["low", "medium", "high", "not_recorded"])},
+    "garment_position": {value: index for index, value in enumerate(["standard", "adjusted", "not_recorded"])},
+    "body_exposure_level": {
+        value: index for index, value in enumerate(["fully_clothed", "partial", "swimwear_or_underwear", "not_recorded"])
+    },
+    "pose": {value: index for index, value in enumerate(["standing", "sitting", "reclining", "action", "not_recorded"])},
+    "setting": {value: index for index, value in enumerate(["studio", "indoor", "outdoor", "not_recorded"])},
+    "lighting": {value: index for index, value in enumerate(["natural", "soft", "dramatic", "mixed", "not_recorded"])},
+    "background": {value: index for index, value in enumerate(["plain", "textured", "environmental", "not_recorded"])},
+    "color_palette": {value: index for index, value in enumerate(["neutral", "warm", "cool", "high_contrast", "not_recorded"])},
+    "image_quality": {value: index for index, value in enumerate(["draft", "standard", "high", "not_recorded"])},
+    "consent_status": {value: index for index, value in enumerate(["consented", "pending", "restricted", "withdrawn"])},
+}
 
 
 class VisualMetadata(TypedDict):
@@ -283,10 +298,16 @@ def sort_catalog(
         for key in keys:
             if key in {"filename", "orientation"}:
                 values.append(entry["technical"][key])
-            elif key == "consent_status":
-                values.append(entry["consent_status"])
             else:
-                values.append(entry["metadata"][key])
+                if key == "consent_status":
+                    raw_value = entry["consent_status"]
+                else:
+                    raw_value = entry["metadata"][key]
+                precedence = SORT_PRECEDENCE.get(key)
+                if precedence is None:
+                    values.append(raw_value)
+                else:
+                    values.append(precedence[raw_value])
         return tuple(values)
 
     return sorted(entries, key=sort_key)

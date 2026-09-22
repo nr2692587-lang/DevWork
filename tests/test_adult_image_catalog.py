@@ -176,6 +176,7 @@ class AdultImageCatalogTests(unittest.TestCase):
 
         ordered = sort_catalog([e1, e2])
         self.assertEqual([e["technical"]["filename"] for e in ordered], ["a.jpg", "z.jpg"])
+        self.assertEqual([e["metadata"]["age_range"] for e in ordered], ["25-34", "35-44"])
 
     def test_filter_catalog_rejects_invalid_filter_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -196,6 +197,35 @@ class AdultImageCatalogTests(unittest.TestCase):
                 [entry],
                 filters=CatalogFilters(age_range="invalid"),
             )
+
+    def test_sort_catalog_uses_controlled_vocabulary_precedence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            p1 = Path(tmp) / "a.jpg"
+            p2 = Path(tmp) / "z.jpg"
+            Image.new("RGB", (10, 10), color="purple").save(p1)
+            Image.new("RGB", (10, 10), color="orange").save(p2)
+
+            younger = create_catalog_entry(
+                p2,
+                adult_confirmation=True,
+                consent_status="consented",
+                age_range="18-24",
+                skin_visibility="high",
+                garment_position="standard",
+                body_exposure_level="fully_clothed",
+            )
+            unknown = create_catalog_entry(
+                p1,
+                adult_confirmation=True,
+                consent_status="consented",
+                age_range="unknown",
+                skin_visibility="low",
+                garment_position="standard",
+                body_exposure_level="fully_clothed",
+            )
+
+        ordered = sort_catalog([unknown, younger], keys=("age_range",))
+        self.assertEqual([e["metadata"]["age_range"] for e in ordered], ["18-24", "unknown"])
 
 
 if __name__ == "__main__":
