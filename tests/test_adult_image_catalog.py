@@ -53,7 +53,10 @@ class AdultImageCatalogTests(unittest.TestCase):
             source = Path(tmp) / "source.jpg"
             link = Path(tmp) / "linked.jpg"
             Image.new("RGB", (10, 10), color="white").save(source)
-            link.symlink_to(source)
+            try:
+                link.symlink_to(source)
+            except (OSError, NotImplementedError, PermissionError):
+                self.skipTest("Symlink creation is not supported in this environment")
 
             with self.assertRaisesRegex(ValueError, "Symlinked paths"):
                 extract_technical_metadata(link)

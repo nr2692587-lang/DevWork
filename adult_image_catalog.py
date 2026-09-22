@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import errno
+import os
 from dataclasses import dataclass
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Iterable, Literal, Sequence, TypedDict
 
@@ -138,26 +141,39 @@ def _sanitize_exif(image: Image.Image) -> dict[str, str]:
     return safe_exif
 
 
-def _sha256_file(path: Path) -> str:
-    hasher = sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()
-
-
 def extract_technical_metadata(image_path: str | Path) -> TechnicalMetadata:
     path = Path(image_path)
-    if not path.is_file():
-        raise FileNotFoundError(f"Image not found: {path}")
-    if path.is_symlink():
-        raise ValueError(f"Symlinked paths are not allowed: {path}")
 
     suffix = path.suffix.lower()
     if suffix not in SUPPORTED_MIME_TYPES:
         raise ValueError(f"Unsupported image type: {path.suffix}")
 
-    with Image.open(path) as image:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    elif path.is_symlink():
+        raise ValueError(f"Symlinked paths are not allowed: {path}")
+
+    try:
+        fd = os.open(path, flags)
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"Image not found: {path}") from exc
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise ValueError(f"Symlinked paths are not allowed: {path}") from exc
+        raise
+
+    with os.fdopen(fd, "rb") as image_file:
+        hasher = sha256()
+        size = 0
+        chunks: list[bytes] = []
+        for chunk in iter(lambda: image_file.read(8192), b""):
+            hasher.update(chunk)
+            size += len(chunk)
+            chunks.append(chunk)
+        image_bytes = b"".join(chunks)
+
+    with Image.open(BytesIO(image_bytes)) as image:
         exif = _sanitize_exif(image)
         normalized_image = ImageOps.exif_transpose(image)
         width, height = normalized_image.size
@@ -168,8 +184,8 @@ def extract_technical_metadata(image_path: str | Path) -> TechnicalMetadata:
         "width": width,
         "height": height,
         "orientation": _orientation(width, height),
-        "file_size_bytes": path.stat().st_size,
-        "sha256": _sha256_file(path),
+        "file_size_bytes": size,
+        "sha256": hasher.hexdigest(),
         "exif": exif,
     }
 
