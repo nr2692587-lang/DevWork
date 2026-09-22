@@ -13,7 +13,7 @@ from portfolio_image import (
 )
 
 try:
-    from PIL import Image
+    from PIL import Image, features
 except ImportError as exc:  # pragma: no cover - test dependency failure is explicit
     raise RuntimeError("Pillow must be installed to run tests.") from exc
 
@@ -63,6 +63,19 @@ class ProcessPortfolioImageTests(unittest.TestCase):
         self.assertIn("category:portrait-session", result.tags)
         self.assertIn("client-select", result.tags)
         self.assertEqual(result.metadata["category"], "Portrait Session")
+
+    @unittest.skipUnless(features.check("webp"), "WebP support is unavailable")
+    def test_preserves_webp_output_by_default_when_supported(self) -> None:
+        image = Image.new("RGB", (32, 16), color="purple")
+        buffer = BytesIO()
+        buffer.name = "sample.webp"
+        image.save(buffer, format="WEBP")
+        buffer.seek(0)
+
+        result = process_portfolio_image(buffer)
+
+        self.assertEqual(result.source_format, "WEBP")
+        self.assertEqual(result.output_format, "WEBP")
 
     def test_applies_exif_orientation_before_resizing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

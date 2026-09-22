@@ -35,6 +35,9 @@ print(result.metadata["alt_text"])
 - Supported source formats: JPEG/JPG, PNG, TIFF, and WebP when Pillow provides
   the codec.
 - EXIF orientation is normalized before derivative sizing.
+- By default, JPEG, PNG, and WebP inputs keep the same output format; TIFF
+  inputs fall back to PNG for alpha content or JPEG otherwise unless you set
+  `output_format=`.
 - The utility does not infer scene content from pixels. For the bundled
   `Capture1.JPG`, the default metadata only includes technical facts that are
   safe to determine automatically; pass `description=` to supply a reviewed

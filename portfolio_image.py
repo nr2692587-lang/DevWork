@@ -31,6 +31,10 @@ class CorruptImageError(ImageProcessingError):
     """Raised when an image cannot be decoded successfully."""
 
 
+class OutputImageError(ImageProcessingError):
+    """Raised when a derivative image cannot be encoded or written."""
+
+
 @dataclass(frozen=True)
 class ProcessedPortfolioImage:
     source_name: str | None
@@ -88,14 +92,11 @@ def process_portfolio_image(
 
             chosen_output_format = _choose_output_format(
                 requested_format=output_format,
+                source_format=source_format,
                 source_image=normalized,
                 features=features,
             )
             prepared = _prepare_for_output(derivative, chosen_output_format)
-
-            buffer = BytesIO()
-            save_kwargs = _build_save_kwargs(chosen_output_format, quality)
-            prepared.save(buffer, format=chosen_output_format, **save_kwargs)
     except FileNotFoundError as exc:
         raise InvalidImageInputError(f"Image path does not exist: {image_input}") from exc
     except UnidentifiedImageError as exc:
@@ -105,6 +106,13 @@ def process_portfolio_image(
     finally:
         if source is not image_input and hasattr(source, "close"):
             source.close()
+
+    try:
+        buffer = BytesIO()
+        save_kwargs = _build_save_kwargs(chosen_output_format, quality)
+        prepared.save(buffer, format=chosen_output_format, **save_kwargs)
+    except OSError as exc:
+        raise OutputImageError("Unable to encode derivative image output.") from exc
 
     output_bytes = buffer.getvalue()
     resolved_output_path = _write_output(output_bytes, output_path)
@@ -192,9 +200,13 @@ def _file_like_size(file_object: BinaryIO) -> int | None:
         return None
 
 
-def _choose_output_format(*, requested_format: str | None, source_image, features) -> str:
+def _choose_output_format(
+    *, requested_format: str | None, source_format: str, source_image, features
+) -> str:
     if requested_format:
         chosen = requested_format.upper()
+    elif source_format in SUPPORTED_OUTPUT_FORMATS:
+        chosen = source_format
     elif _has_alpha(source_image):
         chosen = "PNG"
     else:
@@ -241,10 +253,13 @@ def _write_output(output_bytes: bytes, output_path: str | Path | None) -> str | 
     if output_path is None:
         return None
 
-    resolved = Path(output_path)
-    resolved.parent.mkdir(parents=True, exist_ok=True)
-    resolved.write_bytes(output_bytes)
-    return str(resolved)
+    try:
+        resolved = Path(output_path)
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_bytes(output_bytes)
+        return str(resolved)
+    except OSError as exc:
+        raise OutputImageError("Unable to write derivative image output.") from exc
 
 
 def _generate_tags(
