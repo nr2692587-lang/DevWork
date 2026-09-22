@@ -5,7 +5,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, Iterable, Literal, Sequence, TypedDict
 
-from PIL import ExifTags, Image
+from PIL import ExifTags, Image, ImageOps
 
 
 SUPPORTED_MIME_TYPES: dict[str, str] = {
@@ -61,8 +61,6 @@ SORT_PRECEDENCE: dict[str, dict[str, int]] = {
 SAFE_EXIF_FIELDS = {
     "Orientation",
     "ColorSpace",
-    "ExifImageWidth",
-    "ExifImageHeight",
     "XResolution",
     "YResolution",
     "ResolutionUnit",
@@ -158,6 +156,7 @@ def extract_technical_metadata(image_path: str | Path) -> TechnicalMetadata:
         raise ValueError(f"Unsupported image type: {path.suffix}")
 
     with Image.open(path) as image:
+        image = ImageOps.exif_transpose(image)
         width, height = image.size
         exif = _sanitize_exif(image)
 
