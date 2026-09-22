@@ -120,14 +120,14 @@ def process_portfolio_image(
     tags = _generate_tags(
         source_format=source_format,
         image_mode=prepared.mode,
-        dimensions=normalized.size,
+        dimensions=prepared.size,
         extra_tags=extra_tags,
         category=category,
     )
     metadata = _build_metadata(
         source_name=source_name,
         source_format=source_format,
-        dimensions=normalized.size,
+        dimensions=prepared.size,
         color_mode=prepared.mode,
         source_color_mode=normalized.mode,
         description=description,
