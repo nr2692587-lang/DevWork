@@ -103,6 +103,8 @@ class ProcessPortfolioImageTests(unittest.TestCase):
         self.assertEqual(result.original_dimensions, (40, 90))
         self.assertEqual(result.output_dimensions, (36, 80))
         self.assertIn("orientation:portrait", result.tags)
+        with Image.open(BytesIO(result.output_bytes)) as output_image:
+            self.assertIsNone(output_image.getexif().get(274))
 
     def test_converts_palette_png_without_transparency_for_output(self) -> None:
         image = Image.new("P", (18, 18))

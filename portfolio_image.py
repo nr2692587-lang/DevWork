@@ -96,9 +96,7 @@ def process_portfolio_image(
                 source_image=normalized,
                 features=features,
             )
-            prepared = _prepare_for_output(derivative, chosen_output_format)
-    except FileNotFoundError as exc:
-        raise InvalidImageInputError(f"Image path does not exist: {image_input}") from exc
+            prepared = _prepare_for_output(derivative, chosen_output_format).copy()
     except UnidentifiedImageError as exc:
         raise CorruptImageError("Unable to decode image data.") from exc
     except OSError as exc:
@@ -171,7 +169,10 @@ def _open_source(image_input: ImageInput) -> tuple[BinaryIO, str | None, int | N
         path = Path(image_input)
         if not path.exists():
             raise InvalidImageInputError(f"Image path does not exist: {path}")
-        return path.open("rb"), path.name, path.stat().st_size
+        try:
+            return path.open("rb"), path.name, path.stat().st_size
+        except OSError as exc:
+            raise InvalidImageInputError(f"Image path could not be opened: {path}") from exc
 
     if hasattr(image_input, "read"):
         source_name = getattr(image_input, "name", None)
