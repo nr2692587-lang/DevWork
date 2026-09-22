@@ -228,6 +228,7 @@ class AdultImageCatalogTests(unittest.TestCase):
 
         ordered = sort_catalog([unknown, younger], keys=("age_range",))
         self.assertEqual([e["metadata"]["age_range"] for e in ordered], ["18-24", "unknown"])
+        self.assertEqual([e["technical"]["filename"] for e in ordered], ["z.jpg", "a.jpg"])
 
 
 if __name__ == "__main__":

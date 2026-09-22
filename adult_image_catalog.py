@@ -307,7 +307,11 @@ def sort_catalog(
         values: list[Any] = []
         for key in keys:
             if key in {"filename", "orientation"}:
-                values.append(entry["technical"][key])
+                raw_value = entry["technical"][key]
+                if key == "filename":
+                    values.append(raw_value.lower())
+                else:
+                    values.append(raw_value)
             else:
                 if key == "consent_status":
                     raw_value = entry["consent_status"]
