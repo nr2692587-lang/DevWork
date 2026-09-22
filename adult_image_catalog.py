@@ -150,15 +150,17 @@ def extract_technical_metadata(image_path: str | Path) -> TechnicalMetadata:
     path = Path(image_path)
     if not path.is_file():
         raise FileNotFoundError(f"Image not found: {path}")
+    if path.is_symlink():
+        raise ValueError(f"Symlinked paths are not allowed: {path}")
 
     suffix = path.suffix.lower()
     if suffix not in SUPPORTED_MIME_TYPES:
         raise ValueError(f"Unsupported image type: {path.suffix}")
 
     with Image.open(path) as image:
-        image = ImageOps.exif_transpose(image)
-        width, height = image.size
         exif = _sanitize_exif(image)
+        normalized_image = ImageOps.exif_transpose(image)
+        width, height = normalized_image.size
 
     return {
         "filename": path.name,

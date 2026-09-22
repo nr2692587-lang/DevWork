@@ -37,6 +37,27 @@ class AdultImageCatalogTests(unittest.TestCase):
         self.assertEqual(metadata["filename"], "Sample.JPG")
         self.assertEqual(len(metadata["sha256"]), 64)
 
+    def test_extract_metadata_accepts_uppercase_jpeg(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            image_path = Path(tmp) / "Sample.JPEG"
+            Image.new("RGB", (12, 24), color="white").save(image_path)
+
+            metadata = extract_technical_metadata(image_path)
+
+        self.assertEqual(metadata["mime_type"], "image/jpeg")
+        self.assertEqual(metadata["orientation"], "portrait")
+        self.assertEqual(metadata["filename"], "Sample.JPEG")
+
+    def test_extract_metadata_rejects_symlink_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "source.jpg"
+            link = Path(tmp) / "linked.jpg"
+            Image.new("RGB", (10, 10), color="white").save(source)
+            link.symlink_to(source)
+
+            with self.assertRaisesRegex(ValueError, "Symlinked paths"):
+                extract_technical_metadata(link)
+
     def test_catalog_requires_adult_confirmation_and_valid_consent_status(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             image_path = Path(tmp) / "adult.jpeg"
