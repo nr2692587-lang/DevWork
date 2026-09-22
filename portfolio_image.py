@@ -81,8 +81,8 @@ def process_portfolio_image(
                     f"Unsupported image format: {source_format or 'unknown'}"
                 )
 
-            original_dimensions = opened_image.size
             normalized = ImageOps.exif_transpose(opened_image)
+            original_dimensions = normalized.size
             derivative = normalized.copy()
             derivative.thumbnail(max_size, Image.Resampling.LANCZOS)
 
@@ -182,11 +182,14 @@ def _file_like_size(file_object: BinaryIO) -> int | None:
     if not hasattr(file_object, "tell") or not hasattr(file_object, "seek"):
         return None
 
-    current_position = file_object.tell()
-    file_object.seek(0, 2)
-    size = file_object.tell()
-    file_object.seek(current_position)
-    return size
+    try:
+        current_position = file_object.tell()
+        file_object.seek(0, 2)
+        size = file_object.tell()
+        file_object.seek(current_position)
+        return size
+    except OSError:
+        return None
 
 
 def _choose_output_format(*, requested_format: str | None, source_image, features) -> str:
@@ -302,11 +305,10 @@ def _build_metadata(
 def _default_description(
     *, source_name: str | None, source_format: str, orientation: str
 ) -> str:
-    if source_name and source_name.lower() == "capture1.jpg":
+    if source_name:
         return (
-            "Capture1.JPG repository sample image; portrait-oriented JPEG. "
-            "Scene-specific description is not inferred automatically, so supply "
-            "`description=` if you need visible subject matter in the catalog."
+            f"{source_name}: {orientation}-oriented "
+            f"{source_format.lower()} portfolio image"
         )
 
     return f"{orientation.title()} {source_format.lower()} portfolio image"

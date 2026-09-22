@@ -37,7 +37,10 @@ class ProcessPortfolioImageTests(unittest.TestCase):
         self.assertIn("orientation:portrait", result.tags)
         self.assertIn("featured", result.tags)
         self.assertEqual(result.metadata["color_mode"], "RGB")
-        self.assertIn("portrait-oriented jpeg", result.metadata["alt_text"].lower())
+        self.assertEqual(
+            result.metadata["alt_text"],
+            "Capture1.JPG: portrait-oriented jpeg portfolio image",
+        )
 
     def test_processes_png_file_like_and_preserves_category_tag(self) -> None:
         image = Image.new("RGBA", (40, 20), color=(25, 50, 75, 128))
@@ -71,9 +74,40 @@ class ProcessPortfolioImageTests(unittest.TestCase):
 
             result = process_portfolio_image(image_path, max_size=(80, 80))
 
-        self.assertEqual(result.original_dimensions, (90, 40))
+        self.assertEqual(result.original_dimensions, (40, 90))
         self.assertEqual(result.output_dimensions, (36, 80))
         self.assertIn("orientation:portrait", result.tags)
+
+    def test_converts_palette_png_without_transparency_for_output(self) -> None:
+        image = Image.new("P", (18, 18))
+        image.putpalette([0, 0, 0, 255, 0, 0] + [0, 0, 0] * 254)
+        buffer = BytesIO()
+        buffer.name = "palette.png"
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        result = process_portfolio_image(buffer, output_format="PNG")
+
+        with Image.open(BytesIO(result.output_bytes)) as output_image:
+            self.assertEqual(output_image.mode, "RGB")
+        self.assertEqual(result.output_format, "PNG")
+        self.assertIn("mode:p", result.tags)
+
+    def test_converts_palette_png_with_transparency_for_output(self) -> None:
+        image = Image.new("P", (18, 18))
+        image.putpalette([0, 0, 0, 255, 0, 0] + [0, 0, 0] * 254)
+        image.info["transparency"] = 0
+        buffer = BytesIO()
+        buffer.name = "palette-alpha.png"
+        image.save(buffer, format="PNG", transparency=0)
+        buffer.seek(0)
+
+        result = process_portfolio_image(buffer)
+
+        with Image.open(BytesIO(result.output_bytes)) as output_image:
+            self.assertEqual(output_image.mode, "RGBA")
+        self.assertEqual(result.output_format, "PNG")
+        self.assertIn("mode:p", result.tags)
 
     def test_rejects_invalid_path(self) -> None:
         with self.assertRaises(InvalidImageInputError):
@@ -93,6 +127,25 @@ class ProcessPortfolioImageTests(unittest.TestCase):
 
         with self.assertRaises(CorruptImageError):
             process_portfolio_image(buffer)
+
+    def test_allows_file_like_objects_without_seekable_size(self) -> None:
+        image = Image.new("RGB", (16, 8), color="green")
+        data = BytesIO()
+        image.save(data, format="PNG")
+        payload = data.getvalue()
+
+        class NonSeekableSizeBuffer(BytesIO):
+            name = "stream.png"
+
+            def seek(self, offset, whence=0):  # type: ignore[override]
+                if whence == 2:
+                    raise OSError("size unavailable")
+                return super().seek(offset, whence)
+
+        result = process_portfolio_image(NonSeekableSizeBuffer(payload))
+
+        self.assertIsNone(result.source_size_bytes)
+        self.assertEqual(result.source_format, "PNG")
 
 
 if __name__ == "__main__":
