@@ -5,7 +5,7 @@ This repository provides a **consent-aware, adult-only** image cataloging module
 ## Safety and policy constraints
 
 - Cataloging is allowed only when `adult_confirmation=True`.
-- Cataloging also requires explicit `consent_status="consented"`.
+- Cataloging also requires an explicit `consent_status` value (`consented`, `withdrawn`, `restricted`, or `pending`).
 - The tool **does not** infer age or identity from images.
 - Sensitive fields are controlled vocabularies entered/reviewed by an authorized user.
 - The implementation does **not** include face recognition, age estimation, attractiveness scoring, or automated body/skin/nudity classification.

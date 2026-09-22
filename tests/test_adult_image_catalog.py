@@ -37,7 +37,7 @@ class AdultImageCatalogTests(unittest.TestCase):
         self.assertEqual(metadata["filename"], "Sample.JPG")
         self.assertEqual(len(metadata["sha256"]), 64)
 
-    def test_catalog_requires_adult_confirmation_and_consent(self) -> None:
+    def test_catalog_requires_adult_confirmation_and_valid_consent_status(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             image_path = Path(tmp) / "adult.jpeg"
             Image.new("RGB", (10, 20), color="black").save(image_path)
@@ -57,12 +57,23 @@ class AdultImageCatalogTests(unittest.TestCase):
                 create_catalog_entry(
                     image_path,
                     adult_confirmation=True,
-                    consent_status="pending",
+                    consent_status="invalid",  # type: ignore[arg-type]
                     age_range="25-34",
                     skin_visibility="low",
                     garment_position="standard",
                     body_exposure_level="fully_clothed",
                 )
+
+            pending_entry = create_catalog_entry(
+                image_path,
+                adult_confirmation=True,
+                consent_status="pending",
+                age_range="25-34",
+                skin_visibility="low",
+                garment_position="standard",
+                body_exposure_level="fully_clothed",
+            )
+            self.assertEqual(pending_entry["consent_status"], "pending")
 
     def test_sanitize_exif_omits_gps_and_makernote(self) -> None:
         tags_by_name = {name: key for key, name in ExifTags.TAGS.items()}
@@ -119,6 +130,23 @@ class AdultImageCatalogTests(unittest.TestCase):
         self.assertEqual(len(filtered), 1)
         self.assertEqual(filtered[0]["technical"]["filename"], "a.jpg")
         self.assertEqual([e["technical"]["filename"] for e in sorted_entries], ["a.jpg", "b.jpg"])
+
+    def test_sort_catalog_rejects_unsupported_key(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            image_path = Path(tmp) / "adult.jpg"
+            Image.new("RGB", (10, 10), color="white").save(image_path)
+            entry = create_catalog_entry(
+                image_path,
+                adult_confirmation=True,
+                consent_status="consented",
+                age_range="25-34",
+                skin_visibility="low",
+                garment_position="standard",
+                body_exposure_level="fully_clothed",
+            )
+
+        with self.assertRaisesRegex(ValueError, "Unsupported sort key"):
+            sort_catalog([entry], keys=("unsupported_key",))
 
 
 if __name__ == "__main__":

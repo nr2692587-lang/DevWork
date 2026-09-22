@@ -28,6 +28,21 @@ LIGHTING = {"natural", "soft", "dramatic", "mixed", "not_recorded"}
 BACKGROUND = {"plain", "textured", "environmental", "not_recorded"}
 COLOR_PALETTE = {"neutral", "warm", "cool", "high_contrast", "not_recorded"}
 IMAGE_QUALITY = {"draft", "standard", "high", "not_recorded"}
+SUPPORTED_SORT_KEYS: tuple[str, ...] = (
+    "age_range",
+    "skin_visibility",
+    "garment_position",
+    "body_exposure_level",
+    "pose",
+    "setting",
+    "lighting",
+    "background",
+    "color_palette",
+    "image_quality",
+    "consent_status",
+    "filename",
+    "orientation",
+)
 
 
 class VisualMetadata(TypedDict):
@@ -152,8 +167,6 @@ def create_catalog_entry(
         raise ValueError("adult_confirmation must be True for adult-only cataloging")
 
     _validate_choice("consent_status", consent_status, CONSENT_STATUSES)
-    if consent_status != "consented":
-        raise ValueError("consent_status must be 'consented' before cataloging")
 
     _validate_choice("age_range", age_range, AGE_RANGES)
     _validate_choice("skin_visibility", skin_visibility, SKIN_VISIBILITY)
@@ -231,23 +244,8 @@ def sort_catalog(
     color_palette, image_quality, consent_status, filename, orientation.
     """
 
-    supported_keys = {
-        "age_range",
-        "skin_visibility",
-        "garment_position",
-        "body_exposure_level",
-        "pose",
-        "setting",
-        "lighting",
-        "background",
-        "color_palette",
-        "image_quality",
-        "consent_status",
-        "filename",
-        "orientation",
-    }
     for key in keys:
-        if key not in supported_keys:
+        if key not in SUPPORTED_SORT_KEYS:
             raise ValueError(f"Unsupported sort key: {key}")
 
     def sort_key(entry: CatalogEntry) -> tuple[Any, ...]:
