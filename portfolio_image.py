@@ -97,6 +97,15 @@ def process_portfolio_image(
                 features=features,
             )
             prepared = _prepare_for_output(derivative, chosen_output_format).copy()
+            buffer = BytesIO()
+            _ensure_output_codec_available(chosen_output_format, features)
+            save_kwargs = _build_save_kwargs(chosen_output_format, quality)
+            try:
+                prepared.save(buffer, format=chosen_output_format, **save_kwargs)
+            except OSError as exc:
+                raise OutputImageError(
+                    "Unable to encode derivative image output."
+                ) from exc
     except UnidentifiedImageError as exc:
         raise CorruptImageError("Unable to decode image data.") from exc
     except OSError as exc:
@@ -104,14 +113,6 @@ def process_portfolio_image(
     finally:
         if source is not image_input and hasattr(source, "close"):
             source.close()
-
-    try:
-        buffer = BytesIO()
-        _ensure_output_codec_available(chosen_output_format, features)
-        save_kwargs = _build_save_kwargs(chosen_output_format, quality)
-        prepared.save(buffer, format=chosen_output_format, **save_kwargs)
-    except OSError as exc:
-        raise OutputImageError("Unable to encode derivative image output.") from exc
 
     output_bytes = buffer.getvalue()
     resolved_output_path = _write_output(output_bytes, output_path)
