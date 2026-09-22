@@ -118,7 +118,7 @@ def process_portfolio_image(
     output_bytes = buffer.getvalue()
     resolved_output_path = _write_output(output_bytes, output_path)
     tags = _generate_tags(
-        source_format=source_format,
+        output_format=chosen_output_format,
         image_mode=prepared.mode,
         dimensions=prepared.size,
         extra_tags=extra_tags,
@@ -279,7 +279,7 @@ def _write_output(output_bytes: bytes, output_path: str | Path | None) -> str | 
 
 def _generate_tags(
     *,
-    source_format: str,
+    output_format: str,
     image_mode: str,
     dimensions: tuple[int, int],
     extra_tags: Iterable[str] | None,
@@ -287,7 +287,7 @@ def _generate_tags(
 ) -> tuple[str, ...]:
     tags = {
         "portfolio",
-        f"format:{source_format.lower()}",
+        f"format:{output_format.lower()}",
         f"orientation:{_orientation(dimensions)}",
         f"mode:{image_mode.lower()}",
     }

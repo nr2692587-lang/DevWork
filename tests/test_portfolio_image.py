@@ -77,6 +77,19 @@ class ProcessPortfolioImageTests(unittest.TestCase):
         self.assertEqual(result.source_format, "WEBP")
         self.assertEqual(result.output_format, "WEBP")
 
+    def test_uses_derivative_format_tag_for_tiff_conversion(self) -> None:
+        image = Image.new("RGBA", (24, 12), color=(100, 50, 25, 128))
+        buffer = BytesIO()
+        buffer.name = "sample.tiff"
+        image.save(buffer, format="TIFF")
+        buffer.seek(0)
+
+        result = process_portfolio_image(buffer)
+
+        self.assertEqual(result.source_format, "TIFF")
+        self.assertEqual(result.output_format, "PNG")
+        self.assertIn("format:png", result.tags)
+
     def test_applies_exif_orientation_before_resizing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             image_path = Path(temp_dir) / "rotated.jpg"
