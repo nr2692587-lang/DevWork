@@ -148,6 +148,55 @@ class AdultImageCatalogTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unsupported sort key"):
             sort_catalog([entry], keys=("unsupported_key",))
 
+    def test_sort_catalog_default_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            p1 = Path(tmp) / "z.jpg"
+            p2 = Path(tmp) / "a.jpg"
+            Image.new("RGB", (10, 10), color="red").save(p1)
+            Image.new("RGB", (10, 10), color="yellow").save(p2)
+
+            e1 = create_catalog_entry(
+                p1,
+                adult_confirmation=True,
+                consent_status="consented",
+                age_range="35-44",
+                skin_visibility="medium",
+                garment_position="standard",
+                body_exposure_level="partial",
+            )
+            e2 = create_catalog_entry(
+                p2,
+                adult_confirmation=True,
+                consent_status="consented",
+                age_range="25-34",
+                skin_visibility="low",
+                garment_position="standard",
+                body_exposure_level="fully_clothed",
+            )
+
+        ordered = sort_catalog([e1, e2])
+        self.assertEqual([e["technical"]["filename"] for e in ordered], ["a.jpg", "z.jpg"])
+
+    def test_filter_catalog_rejects_invalid_filter_value(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            image_path = Path(tmp) / "adult.jpg"
+            Image.new("RGB", (10, 10), color="white").save(image_path)
+            entry = create_catalog_entry(
+                image_path,
+                adult_confirmation=True,
+                consent_status="consented",
+                age_range="25-34",
+                skin_visibility="low",
+                garment_position="standard",
+                body_exposure_level="fully_clothed",
+            )
+
+        with self.assertRaisesRegex(ValueError, "Invalid 'age_range'"):
+            filter_catalog(  # type: ignore[arg-type]
+                [entry],
+                filters=CatalogFilters(age_range="invalid"),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

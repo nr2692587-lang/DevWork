@@ -77,17 +77,17 @@ class CatalogEntry(TypedDict):
 
 @dataclass(frozen=True)
 class CatalogFilters:
-    consent_status: str | None = None
-    age_range: str | None = None
-    skin_visibility: str | None = None
-    garment_position: str | None = None
-    body_exposure_level: str | None = None
-    pose: str | None = None
-    setting: str | None = None
-    lighting: str | None = None
-    background: str | None = None
-    color_palette: str | None = None
-    image_quality: str | None = None
+    consent_status: Literal["consented", "withdrawn", "restricted", "pending"] | None = None
+    age_range: Literal["18-24", "25-34", "35-44", "45-54", "55+", "unknown"] | None = None
+    skin_visibility: Literal["low", "medium", "high", "not_recorded"] | None = None
+    garment_position: Literal["standard", "adjusted", "not_recorded"] | None = None
+    body_exposure_level: Literal["fully_clothed", "partial", "swimwear_or_underwear", "not_recorded"] | None = None
+    pose: Literal["standing", "sitting", "reclining", "action", "not_recorded"] | None = None
+    setting: Literal["studio", "indoor", "outdoor", "not_recorded"] | None = None
+    lighting: Literal["natural", "soft", "dramatic", "mixed", "not_recorded"] | None = None
+    background: Literal["plain", "textured", "environmental", "not_recorded"] | None = None
+    color_palette: Literal["neutral", "warm", "cool", "high_contrast", "not_recorded"] | None = None
+    image_quality: Literal["draft", "standard", "high", "not_recorded"] | None = None
 
 
 def _validate_choice(field: str, value: str, allowed: set[str]) -> None:
@@ -115,6 +115,14 @@ def _sanitize_exif(image: Image.Image) -> dict[str, str]:
     return safe_exif
 
 
+def _sha256_file(path: Path) -> str:
+    hasher = sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
 def extract_technical_metadata(image_path: str | Path) -> TechnicalMetadata:
     path = Path(image_path)
     if not path.is_file():
@@ -128,15 +136,14 @@ def extract_technical_metadata(image_path: str | Path) -> TechnicalMetadata:
         width, height = image.size
         exif = _sanitize_exif(image)
 
-    file_bytes = path.read_bytes()
     return {
         "filename": path.name,
         "mime_type": SUPPORTED_MIME_TYPES[suffix],
         "width": width,
         "height": height,
         "orientation": _orientation(width, height),
-        "file_size_bytes": len(file_bytes),
-        "sha256": sha256(file_bytes).hexdigest(),
+        "file_size_bytes": path.stat().st_size,
+        "sha256": _sha256_file(path),
         "exif": exif,
     }
 
@@ -202,6 +209,29 @@ def create_catalog_entry(
 
 def filter_catalog(entries: Iterable[CatalogEntry], *, filters: CatalogFilters) -> list[CatalogEntry]:
     """Filter catalog entries by exact metadata matches using deterministic rules."""
+    if filters.consent_status is not None:
+        _validate_choice("consent_status", filters.consent_status, CONSENT_STATUSES)
+    if filters.age_range is not None:
+        _validate_choice("age_range", filters.age_range, AGE_RANGES)
+    if filters.skin_visibility is not None:
+        _validate_choice("skin_visibility", filters.skin_visibility, SKIN_VISIBILITY)
+    if filters.garment_position is not None:
+        _validate_choice("garment_position", filters.garment_position, GARMENT_POSITION)
+    if filters.body_exposure_level is not None:
+        _validate_choice("body_exposure_level", filters.body_exposure_level, BODY_EXPOSURE_LEVEL)
+    if filters.pose is not None:
+        _validate_choice("pose", filters.pose, POSE)
+    if filters.setting is not None:
+        _validate_choice("setting", filters.setting, SETTING)
+    if filters.lighting is not None:
+        _validate_choice("lighting", filters.lighting, LIGHTING)
+    if filters.background is not None:
+        _validate_choice("background", filters.background, BACKGROUND)
+    if filters.color_palette is not None:
+        _validate_choice("color_palette", filters.color_palette, COLOR_PALETTE)
+    if filters.image_quality is not None:
+        _validate_choice("image_quality", filters.image_quality, IMAGE_QUALITY)
+
     filtered: list[CatalogEntry] = []
     for entry in entries:
         metadata = entry["metadata"]
