@@ -104,7 +104,9 @@ class ProcessPortfolioImageTests(unittest.TestCase):
         with Image.open(BytesIO(result.output_bytes)) as output_image:
             self.assertEqual(output_image.mode, "RGB")
         self.assertEqual(result.output_format, "PNG")
-        self.assertIn("mode:p", result.tags)
+        self.assertEqual(result.metadata["color_mode"], "RGB")
+        self.assertEqual(result.metadata["source_color_mode"], "P")
+        self.assertIn("mode:rgb", result.tags)
 
     def test_converts_palette_png_with_transparency_for_output(self) -> None:
         image = Image.new("P", (18, 18))
@@ -120,7 +122,9 @@ class ProcessPortfolioImageTests(unittest.TestCase):
         with Image.open(BytesIO(result.output_bytes)) as output_image:
             self.assertEqual(output_image.mode, "RGBA")
         self.assertEqual(result.output_format, "PNG")
-        self.assertIn("mode:p", result.tags)
+        self.assertEqual(result.metadata["color_mode"], "RGBA")
+        self.assertEqual(result.metadata["source_color_mode"], "P")
+        self.assertIn("mode:rgba", result.tags)
 
     def test_rejects_invalid_path(self) -> None:
         with self.assertRaises(InvalidImageInputError):

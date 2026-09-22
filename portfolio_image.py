@@ -109,6 +109,7 @@ def process_portfolio_image(
 
     try:
         buffer = BytesIO()
+        _ensure_output_codec_available(chosen_output_format, features)
         save_kwargs = _build_save_kwargs(chosen_output_format, quality)
         prepared.save(buffer, format=chosen_output_format, **save_kwargs)
     except OSError as exc:
@@ -118,7 +119,7 @@ def process_portfolio_image(
     resolved_output_path = _write_output(output_bytes, output_path)
     tags = _generate_tags(
         source_format=source_format,
-        image_mode=normalized.mode,
+        image_mode=prepared.mode,
         dimensions=normalized.size,
         extra_tags=extra_tags,
         category=category,
@@ -127,7 +128,8 @@ def process_portfolio_image(
         source_name=source_name,
         source_format=source_format,
         dimensions=normalized.size,
-        color_mode=normalized.mode,
+        color_mode=prepared.mode,
+        source_color_mode=normalized.mode,
         description=description,
         category=category,
     )
@@ -249,6 +251,19 @@ def _build_save_kwargs(output_format: str, quality: int) -> dict[str, object]:
     return {"optimize": True}
 
 
+def _ensure_output_codec_available(output_format: str, features) -> None:
+    codec_checks = {
+        "JPEG": lambda: features.check_codec("jpg"),
+        "PNG": lambda: features.check_codec("zlib"),
+        "WEBP": lambda: features.check("webp"),
+    }
+    checker = codec_checks.get(output_format)
+    if checker and not checker():
+        raise MissingImageDependencyError(
+            f"This Pillow build does not include {output_format} output support."
+        )
+
+
 def _write_output(output_bytes: bytes, output_path: str | Path | None) -> str | None:
     if output_path is None:
         return None
@@ -294,6 +309,7 @@ def _build_metadata(
     source_format: str,
     dimensions: tuple[int, int],
     color_mode: str,
+    source_color_mode: str,
     description: str | None,
     category: str | None,
 ) -> dict[str, str]:
@@ -309,6 +325,7 @@ def _build_metadata(
         ),
         "orientation": orientation,
         "color_mode": color_mode,
+        "source_color_mode": source_color_mode,
     }
 
     if category:
